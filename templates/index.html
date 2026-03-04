@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jacquard Performance Report</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+
+<body>
+  <div id="layout">
+
+    <!-- ── Left: Form Card ── -->
+    <div class="card" id="formCard">
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="icon-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+
+        <h1 class="title">Jacquard Performance Report</h1>
+        <p class="subtitle">Configure &amp; generate analysis reports</p>
+
+        <form id="reportForm" onsubmit="handleSubmit(event)">
+          <div class="field-group">
+            <label class="field-label">MILL NAME</label>
+            <input type="text" id="millName" class="field-input" value="Jacquard" placeholder="Enter mill name" />
+          </div>
+
+          <div class="row">
+            <div class="field-group">
+              <label class="field-label">START DATE</label>
+              <input type="date" id="startDate" class="field-input" value="{{ today }}" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">START TIME</label>
+              <input type="time" id="startTime" class="field-input" value="08:00" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field-group">
+              <label class="field-label">END DATE</label>
+              <input type="date" id="endDate" class="field-input" value="{{ today }}" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">END TIME</label>
+              <input type="time" id="endTime" class="field-input" value="12:00" />
+            </div>
+          </div>
+
+          <button type="submit" class="btn-generate" id="generateBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Generate Report
+          </button>
+        </form>
+
+        <!-- Inline error message -->
+        <div id="formError" class="form-error hidden"></div>
+
+        <!-- Print / PDF — shown after report generated -->
+        <div id="actionBtns" class="action-btns hidden">
+          <button class="btn-print" onclick="window.print()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print
+          </button>
+          <button class="btn-pdf" onclick="window.print()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Right: Report Panel ── -->
+    <div id="reportPanel" class="report-panel hidden"></div>
+
+  </div>
+
+  <script>
+    /* ── Helpers ── */
+    function fmtDate(iso) {
+      // yyyy-mm-dd → dd-mm-yyyy
+      const [y, m, d] = iso.split('-');
+      return `${d}-${m}-${y}`;
+    }
+
+    // Extract 12-hour time and AM/PM period from a 24-hour "HH:MM" value
+    function getTimeParts(timeStr24) {
+      const [h, m] = timeStr24.split(':').map(Number);
+      const period = h >= 12 ? 'PM' : 'AM';
+      let h12 = h % 12;
+      if (h12 === 0) h12 = 12;
+      return {
+        time: `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+        period,
+      };
+    }
+
+    /* ── Dummy data (swap with real API response later) ── */
+    const DUMMY = {
+      machinePerformance: [
+        {
+          category: 'Operational Time',
+          rows: [
+            { name: 'Total Uptime', value: '04:00:00', cls: 'val-green' },
+            { name: 'Total Downtime', value: '00:00:00', cls: 'val-red' },
+            { name: 'Power Off Duration', value: '00:00:00', cls: '' },
+          ]
+        },
+        {
+          category: 'System Status',
+          rows: [
+            { name: 'Jacquard Machine Run Time', value: '01:19:19', cls: 'val-blue' },
+            { name: 'Jacquard Machine Downtime', value: '02:40:41', cls: '' },
+          ]
+        },
+        {
+          category: 'Error Logs',
+          rows: [
+            { name: 'Software Errors Duration', value: '00:00:00', cls: 'val-red' },
+            { name: 'Camera Off Duration', value: '00:00:00', cls: 'val-red' },
+            { name: 'Camera Off Cycles', value: '0', cls: '' },
+          ]
+        },
+      ],
+      softwareErrors: [
+        { component: 'Software', duration: '00:00:00' },
+        { component: 'Controller', duration: '00:00:00' },
+        { component: 'ML', duration: '00:00:00' },
+        { component: 'Monitor', duration: '00:00:00' },
+        { component: 'Redis', duration: '00:00:00' },
+      ],
+      cameraCycles: [
+        // { camera: 'Cam 1', offCycles: 0, duration: '00:00:00' }
+      ],
+      productionSummary: [
+        { name: 'Total Revolution', value: '256950 M', cls: '' },
+        { name: 'Total Defects Detected', value: '4297', cls: 'val-red' },
+        { name: 'Defect Rate', value: '1.67%', cls: 'val-red' },
+        { name: 'Good Fabric Length', value: '253120 M', cls: 'val-green' },
+      ],
+    };
+
+    /* ── Build: machine performance table ── */
+    function buildMachineTable(sections) {
+      let rows = '';
+      sections.forEach(sec => {
+        sec.rows.forEach((r, i) => {
+          const isMulti = r.value && r.value.includes(',');
+          const displayValue = isMulti
+            ? r.value.split(',').map(s => s.trim()).filter(Boolean).join('<br>')
+            : (r.value || '—');
+          rows += `<tr>
+            ${i === 0 ? `<td class="cat-cell" rowspan="${sec.rows.length}">${sec.category}</td>` : ''}
+            <td class="metric-name">${r.name}</td>
+            <td class="val-cell ${r.cls} ${isMulti ? 'val-text' : ''}">${displayValue}</td>
+          </tr>`;
+        });
+      });
+      return `
+        <div class="rpt-section">
+          <div class="rpt-section-hdr hdr-blue">MACHINE PERFORMANCE ANALYSIS</div>
+          <table class="rpt-table">
+            <thead><tr>
+              <th class="th-cat">Metric Category</th>
+              <th>Metric Name</th>
+              <th class="th-right">Value / Duration</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    /* ── Build: component diagnostics (two side-by-side sub-tables) ── */
+    function buildComponentSection(swErrors, camOffCycles) {
+      let swRows = swErrors.map(r => `
+        <tr>
+          <td class="sub-cell">${r.component}</td>
+          <td class="sub-val">${r.duration}</td>
+        </tr>`).join('');
+
+      const camItems = camOffCycles
+        ? camOffCycles.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
+      let camRows = camItems.length
+        ? camItems.map(item => `
+          <tr>
+            <td class="sub-cell cam-label" colspan="2">${item}</td>
+          </tr>`).join('')
+        : '';
+
+      return `
+        <div class="rpt-section">
+          <div class="rpt-section-hdr hdr-dark">COMPONENT DIAGNOSTICS</div>
+          <div class="diag-grid">
+            <div class="diag-block">
+              <div class="diag-sub-title">SOFTWARE ERROR BREAKDOWN</div>
+              <table class="rpt-table">
+                <thead><tr>
+                  <th>Component</th>
+                  <th class="th-right">Duration</th>
+                </tr></thead>
+                <tbody>${swRows}</tbody>
+              </table>
+            </div>
+            <div class="diag-block">
+              <div class="diag-sub-title">CAMERA CYCLE BREAKDOWN</div>
+              <table class="rpt-table">
+                <tbody>${camRows}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    /* ── Build: defect distribution ── */
+    function buildDefectDistribution(defects) {
+      const entries = defects ? Object.entries(defects) : [];
+      const rows = entries.length
+        ? entries.map(([name, count], i) => `
+            <tr>
+              <td class="val-cell">${i + 1}</td>
+              <td class="metric-name">${name}</td>
+              <td class="val-cell val-red">${count}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="3" class="sub-empty">No defects detected</td></tr>`;
+      return `
+        <div class="rpt-section">
+          <div class="rpt-section-hdr hdr-red">DEFECT DISTRIBUTION</div>
+          <table class="rpt-table">
+            <thead><tr>
+              <th>#</th>
+              <th>Defect Type</th>
+              <th class="th-right">Count</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    /* ── Build: production summary ── */
+    function buildProductionSummary(rows) {
+      let bodyRows = rows.map(r => `
+        <tr>
+          <td class="metric-name">${r.name}</td>
+          <td class="val-cell ${r.cls}">${r.value}</td>
+        </tr>`).join('');
+      return `
+        <div class="rpt-section">
+          <div class="rpt-section-hdr hdr-green">PRODUCTION SUMMARY</div>
+          <table class="rpt-table">
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    /* ── Assemble full report from API response dict ── */
+    function buildReport(d) {
+      return `
+        <div class="rpt-page">
+          <div class="rpt-header">
+            <div>
+              <div class="rpt-mill">${d.mill_name.toUpperCase()}</div>
+              <div class="rpt-subtitle">Performance Analysis Report</div>
+            </div>
+            <div class="rpt-date-box">
+              <span class="rpt-date-label">REPORT DATE</span>
+              <span class="rpt-date-value">${fmtDate(d.end_date)}</span>
+            </div>
+          </div>
+          <div class="rpt-meta">
+            <span><strong>RANGE:</strong> ${fmtDate(d.start_date)} to ${fmtDate(d.end_date)}</span>
+            <span><strong>SHIFT TIME:</strong> ${d.start_time} - ${d.end_time}</span>
+          </div>
+          <hr class="rpt-hr" />
+          ${buildMachineTable(d.machine_performance)}
+          ${buildComponentSection(d.software_errors, d.camera_off_cycles)}
+          ${buildProductionSummary(d.production_summary)}
+          ${buildDefectDistribution(d.defect_distribution)}
+        </div>`;
+    }
+
+    const GENERATE_ICON = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>`;
+
+    /* ── Form submit ── */
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('generateBtn');
+      const panel = document.getElementById('reportPanel');
+
+      btn.disabled = true;
+      btn.innerHTML = 'Generating…';
+
+      const startParts = getTimeParts(document.getElementById('startTime').value);
+      const endParts   = getTimeParts(document.getElementById('endTime').value);
+
+      const params = {
+        mill_name: document.getElementById('millName').value,
+        start_date: document.getElementById('startDate').value,
+        start_time: startParts.time,
+        start_time_period: startParts.period,
+        end_date: document.getElementById('endDate').value,
+        end_time: endParts.time,
+        end_time_period: endParts.period,
+      };
+
+      const errorBox = document.getElementById('formError');
+      errorBox.classList.add('hidden');
+      errorBox.textContent = '';
+
+      try {
+        const res = await fetch('/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.status === 'error') {
+          errorBox.textContent = data.message || `Server error: ${res.status}`;
+          errorBox.classList.remove('hidden');
+          return;
+        }
+
+        // Render report using dict returned from API
+        errorBox.classList.add('hidden');
+        panel.innerHTML = buildReport(data);
+        panel.classList.remove('hidden');
+        document.getElementById('layout').classList.add('expanded');
+        document.getElementById('actionBtns').classList.remove('hidden');
+
+      } catch (err) {
+        errorBox.textContent = `Failed to generate report: ${err.message}`;
+        errorBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `${GENERATE_ICON} Generate Report`;
+      }
+    }
+  </script>
+</body>
+
+</html>

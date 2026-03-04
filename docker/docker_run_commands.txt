@@ -1,0 +1,8 @@
+
+sudo docker build -t countaiadmin/jacquard-report:latest .
+
+sudo docker push countaiadmin/jacquard-report:latest
+
+sudo docker pull countaiadmin/jacquard-report:latest
+
+sudo docker run --restart=always -d --name jacquard-report -v /etc/localtime:/etc/localtime:ro --network=host --privileged countaiadmin/jacquard-report:latest
