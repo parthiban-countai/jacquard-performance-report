@@ -125,7 +125,6 @@
           rows: [
             { name: 'Total Uptime', value: '04:00:00', cls: 'val-green' },
             { name: 'Total Downtime', value: '00:00:00', cls: 'val-red' },
-            { name: 'Power Off Duration', value: '00:00:00', cls: '' },
           ]
         },
         {
@@ -152,7 +151,7 @@
         { component: 'Redis', duration: '00:00:00' },
       ],
       cameraCycles: [
-        // { camera: 'Cam 1', offCycles: 0, duration: '00:00:00' }
+        // { cam_name: 'cam1', cycle: 1, from: '2024-01-01 08:05:00', to: '2024-01-01 08:12:00', duration: '00:07' }
       ],
       productionSummary: [
         { name: 'Total Revolution', value: '256950 M', cls: '' },
@@ -193,23 +192,21 @@
     }
 
     /* ── Build: component diagnostics (two side-by-side sub-tables) ── */
-    function buildComponentSection(swErrors, camOffCycles) {
+    function buildComponentSection(swErrors, camCycles) {
       let swRows = swErrors.map(r => `
         <tr>
           <td class="sub-cell">${r.component}</td>
           <td class="sub-val">${r.duration}</td>
         </tr>`).join('');
 
-      const camItems = camOffCycles
-        ? camOffCycles.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
-
-      let camRows = camItems.length
-        ? camItems.map(item => `
+      let camRows = camCycles && camCycles.length
+        ? camCycles.map(r => `
           <tr>
-            <td class="sub-cell cam-label" colspan="2">${item}</td>
+            <td class="sub-cell">${r.cam_name}</td>
+            <td class="sub-val">${r.cycle}</td>
+            <td class="sub-val">${r.from} to ${r.to}</td>
           </tr>`).join('')
-        : '';
+        : `<tr><td colspan="3" class="sub-empty">No camera off cycles</td></tr>`;
 
       return `
         <div class="rpt-section">
@@ -227,11 +224,42 @@
             </div>
             <div class="diag-block">
               <div class="diag-sub-title">CAMERA CYCLE BREAKDOWN</div>
-              <table class="rpt-table">
+              <table class="rpt-table cam-cycle-table">
+                <thead><tr>
+                  <th>Cam Name</th>
+                  <th>Cam Off Cycle</th>
+                  <th class="th-right">Duration</th>
+                </tr></thead>
                 <tbody>${camRows}</tbody>
               </table>
             </div>
           </div>
+        </div>`;
+    }
+
+    /* ── Build: machine downtime periods ── */
+    function buildDowntimePeriods(periods) {
+      const rows = periods && periods.length
+        ? periods.map((r, i) => `
+            <tr>
+              <td class="val-cell">${i + 1}</td>
+              <td class="metric-name">${r.from}</td>
+              <td class="metric-name">${r.to}</td>
+              <td class="val-cell val-red">${r.duration}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="4" class="sub-empty">No downtime recorded</td></tr>`;
+      return `
+        <div class="rpt-section">
+          <div class="rpt-section-hdr hdr-dark">MACHINE DOWNTIME PERIODS</div>
+          <table class="rpt-table downtime-table">
+            <thead><tr>
+              <th>#</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Duration</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
         </div>`;
     }
 
@@ -296,9 +324,10 @@
           </div>
           <hr class="rpt-hr" />
           ${buildMachineTable(d.machine_performance)}
-          ${buildComponentSection(d.software_errors, d.camera_off_cycles)}
+          ${buildComponentSection(d.software_errors, d.camera_cycles)}
           ${buildProductionSummary(d.production_summary)}
           ${buildDefectDistribution(d.defect_distribution)}
+          ${buildDowntimePeriods(d.downtime_periods)}
         </div>`;
     }
 

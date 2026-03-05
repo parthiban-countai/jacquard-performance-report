@@ -15,64 +15,32 @@ def fmt_duration(td: timedelta) -> str:
 
 def calculate_operational_time(uptime_data: list, start_str: str, end_str: str) -> dict:
     """
-    Calculate Total Uptime, Total Downtime, and Power Off Duration.
+    Calculate Total Uptime and Total Downtime.
 
-    Data is recorded every 1 minute. Logic:
-      - Each record present        → 1 minute of Total Uptime
-      - Gap between consecutive records:
-            missing = gap - 1 min  (subtract the 1 min the current record covers)
-            missing >= 2 min       → Power Off Duration
-            0 < missing < 2 min    → Total Downtime  (exactly 1 missed minute)
-      - Boundary gaps (start → first record, last record → end):
-            full gap, same >= 2 / < 2 min classification
+    Iterates every minute in the shift range. If a record exists for that
+    minute it counts as 1 minute of Uptime, otherwise 1 minute of Downtime.
     """
     start_dt = datetime.strptime(start_str, "%Y-%m-%d %H:%M")
     end_dt   = datetime.strptime(end_str,   "%Y-%m-%d %H:%M")
 
-    uptime    = timedelta()
-    downtime  = timedelta()
-    power_off = timedelta()
+    recorded_minutes = {
+        datetime.strptime(r["formatted_timestamp"], "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d %H:%M")
+        for r in uptime_data
+    }
 
-    def classify(gap: timedelta):
-        nonlocal downtime, power_off
-        secs = gap.total_seconds()
-        if secs <= 0:
-            return
-        if secs >= 120:   # >= 2 minutes → Power Off
-            power_off += gap
-        else:             # < 2 minutes (≈ 1 missed minute) → Downtime
-            downtime += gap
-
-    if not uptime_data:
-        # No records at all: entire shift is Power Off
-        classify(end_dt - start_dt)
-    else:
-        records = sorted(uptime_data, key=lambda r: r["formatted_timestamp"])
-        timestamps = [
-            datetime.strptime(r["formatted_timestamp"], "%Y-%m-%d %H:%M:%S")
-            for r in records
-        ]
-
-        # Each record present = 1 minute of uptime
-        uptime = timedelta(minutes=len(records))
-
-        # Gap: shift start → first record
-        classify(timestamps[0] - start_dt)
-
-        # Gaps between consecutive records
-        for i in range(len(timestamps) - 1):
-            gap     = timestamps[i + 1] - timestamps[i]
-            missing = gap - timedelta(minutes=1)   # subtract the 1 min the current record covers
-            classify(missing)
-
-        # Gap: last record → shift end
-        # subtract 1 min because the last record already covers [T, T+1)
-        classify(end_dt - timestamps[-1] - timedelta(minutes=1))
+    uptime_min   = 0
+    downtime_min = 0
+    current = start_dt
+    while current < end_dt:
+        if current.strftime("%Y-%m-%d %H:%M") in recorded_minutes:
+            uptime_min += 1
+        else:
+            downtime_min += 1
+        current += timedelta(minutes=1)
 
     return {
-        "total_uptime":       fmt_duration(uptime),
-        "total_downtime":     fmt_duration(downtime),
-        "power_off_duration": fmt_duration(power_off),
+        "total_uptime":   fmt_duration(timedelta(minutes=uptime_min)),
+        "total_downtime": fmt_duration(timedelta(minutes=downtime_min)),
     }
 
 
@@ -171,12 +139,94 @@ def calculate_error_logs(uptime_data: list, active_cameras: list) -> dict:
         if streak > 1:                  # handle streak running to end of data
             per_cam_off[col] += streak
 
-    camera_off_cycles = ", ".join(
-        f"{col}: {mins}" for col, mins in per_cam_off.items() if mins != 0
-    )
-
     return {
         'software_errors_duration': fmt_duration(timedelta(minutes=sw_error_min)),
         'camera_off_duration':      fmt_duration(timedelta(minutes=cam_off_min)),
-        'camera_off_cycles':        camera_off_cycles
     }
+
+
+def calculate_camera_cycles(uptime_data: list, active_cameras: list) -> list:
+    """
+    For each active camera, find continuous off cycles (>= 2 consecutive rows
+    where cam_status != '1'). Each cycle records the cam name, cycle number,
+    from/to timestamps, and duration.
+
+    Returns a flat list of cycle dicts:
+      [{"cam_name": "cam1", "cycle": 1, "from": "...", "to": "...", "duration": "HH:MM"}, ...]
+    """
+    sorted_data = sorted(uptime_data, key=lambda r: r["formatted_timestamp"])
+
+    result = []
+    for cam in active_cameras:
+        cam_name = cam['cam_name']
+        col      = cam_name + '_status'
+        cycle_no = 0
+        streak   = []
+
+        for row in sorted_data:
+            if row.get(col) != '1':
+                streak.append(row)
+            else:
+                if len(streak) >= 2:
+                    cycle_no += 1
+                    result.append({
+                        "cam_name": cam_name,
+                        "cycle":    cycle_no,
+                        "from":     streak[0]["formatted_timestamp"],
+                        "to":       streak[-1]["formatted_timestamp"],
+                        "duration": fmt_duration(timedelta(minutes=len(streak))),
+                    })
+                streak = []
+
+        if len(streak) >= 2:
+            cycle_no += 1
+            result.append({
+                "cam_name": cam_name,
+                "cycle":    cycle_no,
+                "from":     streak[0]["formatted_timestamp"],
+                "to":       streak[-1]["formatted_timestamp"],
+                "duration": fmt_duration(timedelta(minutes=len(streak))),
+            })
+
+    return result
+
+
+def calculate_downtime_periods(uptime_data: list, start_str: str, end_str: str) -> list:
+    """
+    Walk every minute in the shift range. Consecutive minutes with no record
+    are grouped into a downtime period with from/to timestamps and duration.
+    Returns list of {"from": "...", "to": "...", "duration": "HH:MM"}.
+    """
+    start_dt = datetime.strptime(start_str, "%Y-%m-%d %H:%M")
+    end_dt   = datetime.strptime(end_str,   "%Y-%m-%d %H:%M")
+
+    recorded_minutes = {
+        datetime.strptime(r["formatted_timestamp"], "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d %H:%M")
+        for r in uptime_data
+    }
+
+    periods  = []
+    streak   = []
+    current  = start_dt
+
+    while current < end_dt:
+        if current.strftime("%Y-%m-%d %H:%M") not in recorded_minutes:
+            streak.append(current)
+        else:
+            if streak:
+                periods.append({
+                    "from":     streak[0].strftime("%Y-%m-%d %H:%M"),
+                    "to":       streak[-1].strftime("%Y-%m-%d %H:%M"),
+                    "duration": fmt_duration(timedelta(minutes=len(streak))),
+                })
+                streak = []
+        current += timedelta(minutes=1)
+
+    if streak:
+        periods.append({
+            "from":     streak[0].strftime("%Y-%m-%d %H:%M"),
+            "to":       streak[-1].strftime("%Y-%m-%d %H:%M"),
+            "duration": fmt_duration(timedelta(minutes=len(streak))),
+        })
+
+    return periods
