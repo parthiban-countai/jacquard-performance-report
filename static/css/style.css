@@ -1,4 +1,6 @@
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -128,7 +130,9 @@ form {
   color-scheme: dark;
 }
 
-.field-input:focus { border-color: #4f6ef7; }
+.field-input:focus {
+  border-color: #4f6ef7;
+}
 
 .row {
   display: flex;
@@ -154,9 +158,18 @@ form {
   transition: opacity 0.2s, transform 0.1s;
 }
 
-.btn-generate:hover   { opacity: 0.9; }
-.btn-generate:active  { transform: scale(0.98); }
-.btn-generate:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-generate:hover {
+  opacity: 0.9;
+}
+
+.btn-generate:active {
+  transform: scale(0.98);
+}
+
+.btn-generate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* ── Action buttons ── */
 .action-btns {
@@ -166,7 +179,9 @@ form {
   width: 100%;
 }
 
-.action-btns.hidden { display: none; }
+.action-btns.hidden {
+  display: none;
+}
 
 .btn-print,
 .btn-pdf {
@@ -184,11 +199,20 @@ form {
   transition: opacity 0.2s;
 }
 
-.btn-print { background-color: #22c55e; color: #fff; }
-.btn-pdf   { background-color: #374151; color: #d1d5db; }
+.btn-print {
+  background-color: #22c55e;
+  color: #fff;
+}
+
+.btn-pdf {
+  background-color: #374151;
+  color: #d1d5db;
+}
 
 .btn-print:hover,
-.btn-pdf:hover { opacity: 0.85; }
+.btn-pdf:hover {
+  opacity: 0.85;
+}
 
 /* ── Inline form error ── */
 .form-error {
@@ -203,14 +227,17 @@ form {
   line-height: 1.4;
 }
 
-.form-error.hidden { display: none; }
+.form-error.hidden {
+  display: none;
+}
 
 /* ═══════════════════════════════════════
    Right panel — dark bg, white paper card
 ═══════════════════════════════════════ */
 .report-panel {
   flex: 1;
-  background-color: #0d1117;   /* same dark as body */
+  background-color: #0d1117;
+  /* same dark as body */
   padding: 40px 32px;
   overflow-y: auto;
   min-height: 100vh;
@@ -219,7 +246,9 @@ form {
   align-items: flex-start;
 }
 
-.report-panel.hidden { display: none; }
+.report-panel.hidden {
+  display: none;
+}
 
 /* ── White paper page ── */
 .rpt-page {
@@ -285,7 +314,10 @@ form {
   margin-bottom: 10px;
 }
 
-.rpt-meta strong { font-weight: 700; color: #111827; }
+.rpt-meta strong {
+  font-weight: 700;
+  color: #111827;
+}
 
 .rpt-hr {
   border: none;
@@ -294,7 +326,9 @@ form {
 }
 
 /* ── Section wrapper ── */
-.rpt-section { margin-bottom: 24px; }
+.rpt-section {
+  margin-bottom: 24px;
+}
 
 /* ── Section header variants ── */
 .rpt-section-hdr {
@@ -306,10 +340,21 @@ form {
   color: #fff;
 }
 
-.hdr-blue  { background-color: #3b6ef8; }
-.hdr-dark  { background-color: #374151; }
-.hdr-green { background-color: #16a34a; }
-.hdr-red   { background-color: #dc2626; }
+.hdr-blue {
+  background-color: #3b6ef8;
+}
+
+.hdr-dark {
+  background-color: #374151;
+}
+
+.hdr-green {
+  background-color: #16a34a;
+}
+
+.hdr-red {
+  background-color: #dc2626;
+}
 
 /* ── Main table ── */
 .rpt-table {
@@ -318,7 +363,9 @@ form {
   font-size: 1rem;
 }
 
-.rpt-table thead tr { background-color: #f3f4f6; }
+.rpt-table thead tr {
+  background-color: #f3f4f6;
+}
 
 .rpt-table th {
   padding: 10px 14px;
@@ -329,10 +376,17 @@ form {
   border-bottom: 1px solid #e5e7eb;
 }
 
-.th-right { text-align: right; }
+.th-right {
+  text-align: right;
+}
 
-.rpt-table tbody tr { border-bottom: 1px solid #f3f4f6; }
-.rpt-table tbody tr:hover { background-color: #fafafa; }
+.rpt-table tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.rpt-table tbody tr:hover {
+  background-color: #fafafa;
+}
 
 .cat-cell {
   padding: 10px 14px;
@@ -344,7 +398,11 @@ form {
   white-space: nowrap;
 }
 
-.metric-name { padding: 10px 14px; color: #374151; font-size: 1rem; }
+.metric-name {
+  padding: 10px 14px;
+  color: #374151;
+  font-size: 1rem;
+}
 
 .val-cell {
   padding: 10px 14px;
@@ -355,10 +413,24 @@ form {
   font-variant-numeric: tabular-nums;
 }
 
-.val-green { color: #16a34a; }
-.val-red   { color: #dc2626; }
-.val-blue  { color: #2563eb; }
-.val-text  { text-align: right; font-weight: 600; white-space: normal; word-break: break-word; }
+.val-green {
+  color: #16a34a;
+}
+
+.val-red {
+  color: #dc2626;
+}
+
+.val-blue {
+  color: #2563eb;
+}
+
+.val-text {
+  text-align: right;
+  font-weight: 600;
+  white-space: normal;
+  word-break: break-word;
+}
 
 /* ── Component diagnostics: two-column grid ── */
 .diag-grid {
@@ -368,8 +440,13 @@ form {
   border: 1px solid #e5e7eb;
 }
 
-.diag-block { padding: 12px 16px; }
-.diag-block + .diag-block { border-left: 1px solid #e5e7eb; }
+.diag-block {
+  padding: 12px 16px;
+}
+
+.diag-block+.diag-block {
+  border-left: 1px solid #e5e7eb;
+}
 
 .diag-sub-title {
   font-size: 1.05rem;
@@ -380,10 +457,54 @@ form {
   margin-bottom: 8px;
 }
 
-.sub-cell { padding: 8px 12px; color: #374151; font-size: 1rem; }
-.cam-label { color: #1d4ed8; }
-.sub-val  { padding: 8px 12px; text-align: right; font-weight: 600; color: #111827; font-size: 1rem; }
-.sub-empty { padding: 14px; text-align: center; color: #9ca3af; font-size: 1rem; }
+.sub-cell {
+  padding: 8px 12px;
+  color: #374151;
+  font-size: 1rem;
+}
+
+.cam-label {
+  color: #1d4ed8;
+}
+
+.sub-val {
+  padding: 8px 12px;
+  text-align: right;
+  font-weight: 600;
+  color: #111827;
+  font-size: 1rem;
+}
+
+.sub-empty {
+  padding: 14px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+.cam-cycle-table .sub-cell,
+.cam-cycle-table .sub-val {
+  text-align: center;
+}
+
+.cam-cycle-table td:last-child {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.diag-block .rpt-table td:last-child {
+  font-weight: 500;
+}
+
+.diag-block:first-child .rpt-table td,
+.diag-block:first-child .rpt-table th {
+  text-align: center;
+}
+
+.downtime-table td,
+.downtime-table th {
+  text-align: center;
+}
 
 /* ═══════════════════════════════════════
    Responsive
@@ -405,22 +526,28 @@ form {
     padding: 24px 16px;
   }
 
-  .rpt-page { padding: 32px 24px; }
+  .rpt-page {
+    padding: 32px 24px;
+  }
 
   .diag-grid {
     grid-template-columns: 1fr;
   }
 
-  .diag-block + .diag-block {
+  .diag-block+.diag-block {
     border-left: none;
     border-top: 1px solid #e5e7eb;
   }
 }
 
 @media (max-width: 540px) {
-  .rpt-page { padding: 20px 14px; }
+  .rpt-page {
+    padding: 20px 14px;
+  }
 
-  .rpt-mill { font-size: 1.2rem; }
+  .rpt-mill {
+    font-size: 1.2rem;
+  }
 
   .rpt-header {
     flex-direction: column;
@@ -447,9 +574,13 @@ form {
    Print
 ═══════════════════════════════════════ */
 @media print {
-  body { background: #fff; }
+  body {
+    background: #fff;
+  }
 
-  #formCard { display: none !important; }
+  #formCard {
+    display: none !important;
+  }
 
   .report-panel {
     display: flex !important;

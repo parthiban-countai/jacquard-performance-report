@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from datetime import datetime
 from src.db import Execute, ClientSideDb
-from src.report import calculate_operational_time, calculate_system_status, calculate_software_errors, calculate_error_logs
+from src.report import calculate_operational_time, calculate_system_status, calculate_software_errors, calculate_error_logs, calculate_camera_cycles, calculate_downtime_periods
 import traceback, asyncio
 
 
@@ -79,10 +79,16 @@ async def generate(payload: dict):
             client_db.revolution_data(start_datetime, end_datetime),
             client_db.alarm_data(start_datetime, end_datetime)
         )
-        op_time    = calculate_operational_time(uptime_data, start_datetime, end_datetime)
-        sys_status = calculate_system_status(uptime_data)
-        sw_errors  = calculate_software_errors(uptime_data)
-        err_logs   = calculate_error_logs(uptime_data, active_cameras)
+        op_time     = calculate_operational_time(uptime_data, start_datetime, end_datetime)
+        sys_status  = calculate_system_status(uptime_data)
+        sw_errors   = calculate_software_errors(uptime_data)
+        err_logs    = calculate_error_logs(uptime_data, active_cameras)
+        cam_cycles       = calculate_camera_cycles(uptime_data, active_cameras)
+        downtime_periods = calculate_downtime_periods(uptime_data, start_datetime, end_datetime)
+        cam_cycle_counts = {}
+        for c in cam_cycles:
+            cam_cycle_counts[c["cam_name"]] = cam_cycle_counts.get(c["cam_name"], 0) + 1
+        cam_cycle_summary = ", ".join(f"{name}: {count}" for name, count in cam_cycle_counts.items()) or "0"
         defect_count = {}
         for defect in alarm_data:
             name = defect.get("defect_name", "Unknown")
@@ -99,9 +105,8 @@ async def generate(payload: dict):
                 {
                     "category": "Operational Time",
                     "rows": [
-                        {"name": "Total Uptime",      "value": op_time["total_uptime"],       "cls": "val-green"},
-                        {"name": "Total Downtime",     "value": op_time["total_downtime"],     "cls": "val-red"},
-                        {"name": "Power Off Duration", "value": op_time["power_off_duration"], "cls": ""},
+                        {"name": "Total Uptime",   "value": op_time["total_uptime"],   "cls": "val-green"},
+                        {"name": "Total Downtime", "value": op_time["total_downtime"], "cls": "val-red"},
                     ]
                 },
                 {
@@ -116,17 +121,18 @@ async def generate(payload: dict):
                     "rows": [
                         {"name": "Software Errors Duration", "value": err_logs["software_errors_duration"], "cls": "val-red"},
                         {"name": "Camera Off Duration",      "value": err_logs["camera_off_duration"],      "cls": "val-red"},
-                        {"name": "Camera Off Cycles",        "value": err_logs["camera_off_cycles"],        "cls": ""},
+                        {"name": "Camera Off Cycles",        "value": cam_cycle_summary,                    "cls": ""},
                     ]
                 },
             ],
             "software_errors": sw_errors,
-            "camera_off_cycles": err_logs["camera_off_cycles"],
+            "camera_cycles": cam_cycles,
             "production_summary": [
                 {"name": "Total Revolution",       "value": f"{len(revolution_data)} doff", "cls": ""},
                 {"name": "Total Defects Detected", "value": str(len(alarm_data)), "cls": "val-red"},
             ],
-            "defect_distribution": defect_count
+            "defect_distribution": defect_count,
+            "downtime_periods": downtime_periods
         }
         return JSONResponse(data)
     except Exception as e:
