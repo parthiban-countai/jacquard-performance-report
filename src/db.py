@@ -77,39 +77,39 @@ class ClientSideDb:
             traceback.print_exc()
             return []
 
-    async def uptime_data(self, start_date, end_date):
+    async def uptime_data(self, start_date, end_date, db_name):
         try:
             query = f"""
                 SELECT *, TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS') AS formatted_timestamp FROM public.uptime_status
                 WHERE TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') >= '{start_date}' AND TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') < '{end_date}'
                 ORDER BY uptimestatus_id ASC;
             """
-            return await self.dbconnection["jacquard-1"].select(query)
+            return await self.dbconnection[db_name].select(query)
         except Exception:
             traceback.print_exc()
             return []
 
-    async def active_cameras(self):
+    async def active_cameras(self, db_name):
         try:
             query = """SELECT cam_name FROM public.cam_details WHERE camsts_id = '1' ORDER BY cam_id ASC;"""
-            return await self.dbconnection["jacquard-1"].select(query)
+            return await self.dbconnection[db_name].select(query)
         except Exception:
             traceback.print_exc()
             return []
 
-    async def revolution_data(self, start_date, end_date):
+    async def revolution_data(self, start_date, end_date, db_name):
         try:
             query = f"""
                 SELECT rotation_id FROM public.rotation_details
                 WHERE TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') >= '{start_date}' AND TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') < '{end_date}'
                 ORDER BY rotation_id ASC;
             """
-            return await self.dbconnection["jacquard-1"].select(query)
+            return await self.dbconnection[db_name].select(query)
         except Exception:
             traceback.print_exc()
             return []
 
-    async def alarm_data(self, start_date, end_date):
+    async def alarm_data(self, start_date, end_date, db_name):
         try:
             query = f"""
                 SELECT defect_type.defect_name FROM public.alarm_status
@@ -118,7 +118,7 @@ class ClientSideDb:
                 WHERE TO_CHAR(alarm_status.timestamp, 'YYYY-MM-DD HH24:MI') >= '{start_date}' AND TO_CHAR(alarm_status.timestamp, 'YYYY-MM-DD HH24:MI') < '{end_date}'
                 ORDER BY alarm_id ASC;
             """
-            return await self.dbconnection["jacquard-1"].select(query)
+            return await self.dbconnection[db_name].select(query)
         except Exception:
             traceback.print_exc()
             return []
