@@ -28,7 +28,17 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     today = datetime.now().strftime("%Y-%m-%d")
-    return templates.TemplateResponse("index.html", {"request": request, "today": today})
+    return templates.TemplateResponse(request, "index.html", {"today": today})
+
+
+@app.get("/machines")
+async def machines():
+    try:
+        data = await client_db.mill_machine_name()
+        return JSONResponse({"status": "ok", "machines": data})
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse({"status": "error", "message": str(e)})
 
 
 def to_24h(time_str: str, period: str) -> str:
@@ -41,6 +51,8 @@ def to_24h(time_str: str, period: str) -> str:
 async def generate(payload: dict):
     try:
         mill_name          = payload.get("mill_name", "").strip()
+        machine_name       = payload.get("machine_name", "").strip()
+        db_name            = payload.get("db_name", "").strip()
         start_date         = payload.get("start_date", "").strip()
         start_time         = payload.get("start_time", "").strip()
         start_time_period  = payload.get("start_time_period", "").strip().upper()
@@ -50,6 +62,8 @@ async def generate(payload: dict):
 
         missing = []
         if not mill_name:         missing.append("Mill Name")
+        if not machine_name:      missing.append("Machine Name")
+        if not db_name:           missing.append("DB Name")
         if not start_date:        missing.append("Start Date")
         if not start_time:        missing.append("Start Time")
         if not start_time_period: missing.append("Start Time Period (AM/PM)")
@@ -74,10 +88,10 @@ async def generate(payload: dict):
         start_datetime = f"{start_date} {start_time_24h}"
         end_datetime   = f"{end_date} {end_time_24h}"
         uptime_data, active_cameras, revolution_data, alarm_data = await asyncio.gather(
-            client_db.uptime_data(start_datetime, end_datetime),
-            client_db.active_cameras(),
-            client_db.revolution_data(start_datetime, end_datetime),
-            client_db.alarm_data(start_datetime, end_datetime)
+            client_db.uptime_data(start_datetime, end_datetime, db_name),
+            client_db.active_cameras(db_name),
+            client_db.revolution_data(start_datetime, end_datetime, db_name),
+            client_db.alarm_data(start_datetime, end_datetime, db_name)
         )
         op_time     = calculate_operational_time(uptime_data, start_datetime, end_datetime)
         sys_status  = calculate_system_status(uptime_data)
@@ -97,6 +111,7 @@ async def generate(payload: dict):
         data = {
             "status": "ok",
             "mill_name": mill_name,
+            "machine_name": machine_name,
             "start_date": start_date,
             "start_time": f"{start_time} {start_time_period}",
             "end_date": end_date,

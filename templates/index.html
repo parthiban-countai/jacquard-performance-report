@@ -33,6 +33,13 @@
             <input type="text" id="millName" class="field-input" value="Jacquard" placeholder="Enter mill name" />
           </div>
 
+          <div class="field-group">
+            <label class="field-label">MACHINE NAME</label>
+            <select id="machineName" class="field-input">
+              <option value="">Loading machines…</option>
+            </select>
+          </div>
+
           <div class="row">
             <div class="field-group">
               <label class="field-label">START DATE</label>
@@ -98,6 +105,25 @@
   </div>
 
   <script>
+    /* ── Load machines into select on page load ── */
+    async function loadMachines() {
+      const select = document.getElementById('machineName');
+      try {
+        const res = await fetch('/machines');
+        const data = await res.json();
+        if (data.status === 'ok' && data.machines.length) {
+          select.innerHTML = data.machines.map(m =>
+            `<option value="${m.db_name}" data-machine="${m.machine_name}">${m.machine_name}</option>`
+          ).join('');
+        } else {
+          select.innerHTML = '<option value="">No machines found</option>';
+        }
+      } catch {
+        select.innerHTML = '<option value="">Failed to load machines</option>';
+      }
+    }
+    document.addEventListener('DOMContentLoaded', loadMachines);
+
     /* ── Helpers ── */
     function fmtDate(iso) {
       // yyyy-mm-dd → dd-mm-yyyy
@@ -351,8 +377,13 @@
       const startParts = getTimeParts(document.getElementById('startTime').value);
       const endParts   = getTimeParts(document.getElementById('endTime').value);
 
+      const machineSelect = document.getElementById('machineName');
+      const selectedOption = machineSelect.options[machineSelect.selectedIndex];
+
       const params = {
         mill_name: document.getElementById('millName').value,
+        machine_name: selectedOption ? (selectedOption.dataset.machine || selectedOption.text) : '',
+        db_name: machineSelect.value,
         start_date: document.getElementById('startDate').value,
         start_time: startParts.time,
         start_time_period: startParts.period,
