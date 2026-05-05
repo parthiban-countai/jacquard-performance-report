@@ -347,6 +347,7 @@
           <div class="rpt-meta">
             <span><strong>RANGE:</strong> ${fmtDate(d.start_date)} to ${fmtDate(d.end_date)}</span>
             <span><strong>SHIFT TIME:</strong> ${d.start_time} - ${d.end_time}</span>
+            <span class="rpt-last-updated"><strong>LAST UPDATED:</strong> ${d.last_updated_at || '-'}</span>
           </div>
           <hr class="rpt-hr" />
           ${buildMachineTable(d.machine_performance)}
