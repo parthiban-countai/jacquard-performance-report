@@ -122,3 +122,11 @@ class ClientSideDb:
         except Exception:
             traceback.print_exc()
             return []
+
+    async def last_updated_at(self, db_name):
+        try:
+            query = """SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS') AS timestamp FROM public.uptime_status ORDER BY uptimestatus_id DESC LIMIT 1;"""
+            return await self.dbconnection[db_name].select(query)
+        except Exception:
+            traceback.print_exc()
+            return "-"

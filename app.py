@@ -87,12 +87,14 @@ async def generate(payload: dict):
 
         start_datetime = f"{start_date} {start_time_24h}"
         end_datetime   = f"{end_date} {end_time_24h}"
-        uptime_data, active_cameras, revolution_data, alarm_data = await asyncio.gather(
+        uptime_data, active_cameras, revolution_data, alarm_data, last_updated = await asyncio.gather(
             client_db.uptime_data(start_datetime, end_datetime, db_name),
             client_db.active_cameras(db_name),
             client_db.revolution_data(start_datetime, end_datetime, db_name),
-            client_db.alarm_data(start_datetime, end_datetime, db_name)
+            client_db.alarm_data(start_datetime, end_datetime, db_name),
+            client_db.last_updated_at(db_name)
         )
+        last_updated_at = last_updated[0]["timestamp"] if last_updated else "-"
         op_time     = calculate_operational_time(uptime_data, start_datetime, end_datetime)
         sys_status  = calculate_system_status(uptime_data)
         sw_errors   = calculate_software_errors(uptime_data)
@@ -116,6 +118,7 @@ async def generate(payload: dict):
             "start_time": f"{start_time} {start_time_period}",
             "end_date": end_date,
             "end_time": f"{end_time} {end_time_period}",
+            "last_updated_at": last_updated_at,
             "machine_performance": [
                 {
                     "category": "Operational Time",

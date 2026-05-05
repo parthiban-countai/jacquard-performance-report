@@ -319,6 +319,10 @@ form {
   color: #111827;
 }
 
+.rpt-last-updated {
+  margin-left: auto;
+}
+
 .rpt-hr {
   border: none;
   border-top: 2px solid #111827;
@@ -557,6 +561,10 @@ form {
   .rpt-meta {
     flex-direction: column;
     gap: 4px;
+  }
+
+  .rpt-last-updated {
+    margin-left: 0;
   }
 
   .rpt-table th,
