@@ -1,36 +1,35 @@
 import asyncio, asyncpg, traceback
 from datetime import datetime, timedelta
+from src.aws_secrets import get_db_secrets
 
 
 class Execute:
-    def __init__(self, database="central_database", host="100.110.255.110"):
-        self.database = database
-        self.host = host
+    def __init__(self):
         self.db_pool = None
 
-    async def connect(self, retries=1, delay=1):
+    async def connect(self):
         if self.db_pool is None:
             try:
                 async def init_connection(conn):
                     await conn.execute("SET timezone TO 'Asia/Kolkata'")
 
                 self.db_pool = await asyncpg.create_pool(
-                    database=self.database,
-                    user="postgres",
-                    password="55555",
-                    host=self.host,
+                    database=get_db_secrets("DB_NAME"),
+                    user=get_db_secrets("DB_USER"),
+                    password=get_db_secrets("DB_PASSWORD"),
+                    host=get_db_secrets("DB_HOST"),
                     port="5432",
-                    ssl="disable",
                     min_size=1,
                     max_size=5,
                     init=init_connection,
                     timeout=10.0,
                     max_inactive_connection_lifetime=300,  # 5 min
                 )
-                print(f"✅ Connected to {self.database}")
+                print(f"✅ Connected to db")
                 return True
             except Exception as e:
-                print(f"❌ Connection failed {self.database} in {self.host}")
+                print(f"❌ Connection failed to db: {e}")
+                traceback.print_exc()
                 return False
 
     async def close(self):
@@ -54,24 +53,17 @@ class Execute:
 class ClientSideDb:
     def __init__(self, db: Execute):
         self.execute = db
-        self.dbconnection = {}
 
     async def connect_all_db(self):
         try:
-            all_db_names = await self.mill_machine_name()
-
-            for item in all_db_names:
-                db_name = item["db_name"]
-                droplet_ip = item["droplet_ip"]
-                self.dbconnection[db_name] = Execute(db_name, droplet_ip)
-                await self.dbconnection[db_name].connect()
+            await self.execute.connect()
         except Exception:
             traceback.print_exc()
             return []
 
     async def mill_machine_name(self):
         try:
-            query = """SELECT * FROM public.mill_details INNER JOIN public.machine_details ON mill_details.milldetails_id = machine_details.milldetails_id WHERE mill_details.milldetails_id = 2 ORDER BY machine_details.machinedetail_id ASC"""
+            query = """SELECT * FROM central_database.mill_details INNER JOIN central_database.machine_details ON mill_details.milldetails_id = machine_details.milldetails_id WHERE mill_details.milldetails_id = 2 ORDER BY machine_details.machinedetail_id ASC"""
             return await self.execute.select(query)
         except Exception:
             traceback.print_exc()
@@ -80,19 +72,19 @@ class ClientSideDb:
     async def uptime_data(self, start_date, end_date, db_name):
         try:
             query = f"""
-                SELECT *, TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS') AS formatted_timestamp FROM public.uptime_status
+                SELECT *, TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS') AS formatted_timestamp FROM "{db_name}".uptime_status
                 WHERE TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') >= '{start_date}' AND TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') < '{end_date}'
                 ORDER BY uptimestatus_id ASC;
             """
-            return await self.dbconnection[db_name].select(query)
+            return await self.execute.select(query)
         except Exception:
             traceback.print_exc()
             return []
 
     async def active_cameras(self, db_name):
         try:
-            query = """SELECT cam_name FROM public.cam_details WHERE camsts_id = '1' ORDER BY cam_id ASC;"""
-            return await self.dbconnection[db_name].select(query)
+            query = f"""SELECT cam_name FROM "{db_name}".cam_details WHERE camsts_id = '1' ORDER BY cam_id ASC;"""
+            return await self.execute.select(query)
         except Exception:
             traceback.print_exc()
             return []
@@ -100,11 +92,11 @@ class ClientSideDb:
     async def revolution_data(self, start_date, end_date, db_name):
         try:
             query = f"""
-                SELECT rotation_id FROM public.rotation_details
+                SELECT rotation_id FROM "{db_name}".rotation_details
                 WHERE TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') >= '{start_date}' AND TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') < '{end_date}'
                 ORDER BY rotation_id ASC;
             """
-            return await self.dbconnection[db_name].select(query)
+            return await self.execute.select(query)
         except Exception:
             traceback.print_exc()
             return []
@@ -112,21 +104,21 @@ class ClientSideDb:
     async def alarm_data(self, start_date, end_date, db_name):
         try:
             query = f"""
-                SELECT defect_type.defect_name FROM public.alarm_status
-                INNER JOIN public.defect_details ON alarm_status.defect_id = defect_details.defect_id
-                INNER JOIN public.defect_type ON defect_details.defecttyp_id = defect_type.defecttyp_id
+                SELECT defect_type.defect_name FROM "{db_name}".alarm_status
+                INNER JOIN "{db_name}".defect_details ON alarm_status.defect_id = defect_details.defect_id
+                INNER JOIN "{db_name}".defect_type ON defect_details.defecttyp_id = defect_type.defecttyp_id
                 WHERE TO_CHAR(alarm_status.timestamp, 'YYYY-MM-DD HH24:MI') >= '{start_date}' AND TO_CHAR(alarm_status.timestamp, 'YYYY-MM-DD HH24:MI') < '{end_date}'
                 ORDER BY alarm_id ASC;
             """
-            return await self.dbconnection[db_name].select(query)
+            return await self.execute.select(query)
         except Exception:
             traceback.print_exc()
             return []
 
     async def last_updated_at(self, db_name):
         try:
-            query = """SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS') AS timestamp FROM public.uptime_status ORDER BY uptimestatus_id DESC LIMIT 1;"""
-            return await self.dbconnection[db_name].select(query)
+            query = f"""SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS') AS timestamp FROM "{db_name}".uptime_status ORDER BY uptimestatus_id DESC LIMIT 1;"""
+            return await self.execute.select(query)
         except Exception:
             traceback.print_exc()
             return "-"
